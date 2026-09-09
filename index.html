@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hand Fireworks / Sparkles Effect</title>
+    <title>Advanced Hand Fireworks & Heart Gesture</title>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
@@ -13,7 +13,7 @@
             margin: 0;
             padding: 0;
             background-color: #000;
-            color: #ffaa00;
+            color: #ff3399;
             font-family: 'Courier New', Courier, monospace;
             overflow: hidden;
             width: 100vw;
@@ -22,14 +22,15 @@
 
         .hud-panel {
             position: absolute;
-            border: 1px solid rgba(255, 170, 0, 0.4);
-            background: rgba(10, 5, 0, 0.85);
+            border: 1px solid rgba(255, 51, 153, 0.4);
+            background: rgba(15, 0, 10, 0.85);
             padding: 10px 15px;
             font-size: 12px;
             letter-spacing: 1px;
             z-index: 10;
             pointer-events: none;
-            box-shadow: 0 0 10px rgba(255, 170, 0, 0.2);
+            box-shadow: 0 0 15px rgba(255, 51, 153, 0.3);
+            border-radius: 4px;
         }
 
         #top-left { top: 20px; left: 20px; }
@@ -42,7 +43,7 @@
             height: 100%;
             object-fit: cover;
             transform: scaleX(-1);
-            opacity: 0.2;
+            opacity: 0.25;
             z-index: 1;
         }
 
@@ -58,26 +59,30 @@
 
         #instruction {
             position: absolute;
-            bottom: 40px;
+            bottom: 30px;
             left: 50%;
             transform: translateX(-50%);
-            font-size: 16px;
+            font-size: 15px;
             letter-spacing: 2px;
-            color: #ffcc00;
-            text-shadow: 0 0 10px #ff6600;
+            color: #ff66b2;
+            text-shadow: 0 0 12px #ff1a8c;
             z-index: 20;
             text-align: center;
             pointer-events: none;
+            background: rgba(0, 0, 0, 0.6);
+            padding: 10px 20px;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 102, 178, 0.3);
         }
     </style>
 </head>
 <body>
 
     <div id="top-left" class="hud-panel">
-        EFFETTO: <span id="effect-status" style="color: #ffaa00;">ATTESA PUGNO...</span>
+        SISTEMA MULTI-MANO: <span id="effect-status" style="color: #ff66b2;">ATTESA MANI...</span>
     </div>
 
-    <div id="instruction">CHIUDI LA MANO E APRI DI SCATTO PER I FUOCHI D'ARTIFICIO!</div>
+    <div id="instruction">CHIUDI E APRI LE MANI PER I FUOCHI • AVVICinale per IL CUORE ROSA!</div>
 
     <video class="input_video" autoplay playsinline muted></video>
     <canvas id="output_canvas"></canvas>
@@ -96,29 +101,48 @@
         window.addEventListener('resize', resizeCanvas);
         resizeCanvas();
 
-        // Sistema di particelle per i fuochi d'artificio
         let particles = [];
-        let wasClosed = false; // Tiene traccia se prima la mano era chiusa
+        // Memoria dello stato di chiusura per ciascuna mano tracciata
+        let handStates = {};
 
         class Particle {
-            constructor(x, y) {
+            constructor(x, y, isHeart = false) {
                 this.x = x;
                 this.y = y;
-                // Velocità casuale in tutte le direzioni per l'esplosione
-                const angle = Math.random() * Math.PI * 2;
-                const speed = Math.random() * 12 + 4;
-                this.vx = Math.cos(angle) * speed;
-                this.vy = Math.sin(angle) * speed;
+                this.isHeart = isHeart;
+
+                if (isHeart) {
+                    // Distribuzione matematica approssimativa a forma di cuore per le particelle
+                    const t = Math.random() * Math.PI * 2;
+                    const hx = 16 * Math.pow(Math.sin(t), 3);
+                    const hy = -(13 * Math.cos(t) - 5 * Math.cos(2*t) - 2 * Math.cos(3*t) - Math.cos(4*t));
+                    const speedFactor = Math.random() * 0.6 + 0.4;
+                    this.vx = hx * speedFactor * 0.4;
+                    this.vy = hy * speedFactor * 0.4;
+                    this.color = ['#ff1493', '#ff69b4', '#ffb6c1', '#ffffff', '#ff66cc'][Math.floor(Math.random() * 5)];
+                    this.size = Math.random() * 5 + 3;
+                    this.decay = Math.random() * 0.015 + 0.01;
+                } else {
+                    const angle = Math.random() * Math.PI * 2;
+                    const speed = Math.random() * 14 + 5;
+                    this.vx = Math.cos(angle) * speed;
+                    this.vy = Math.sin(angle) * speed;
+                    this.color = ['#ff3399', '#ff9933', '#ffff33', '#00ffff', '#ffffff', '#9933ff'][Math.floor(Math.random() * 6)];
+                    this.size = Math.random() * 4 + 2;
+                    this.decay = Math.random() * 0.02 + 0.012;
+                }
                 this.alpha = 1;
-                this.decay = Math.random() * 0.02 + 0.015; // Velocità di sbiadimento
-                this.color = ['#ff3300', '#ffcc00', '#ffffff', '#ff00aa', '#00ffff'][Math.floor(Math.random() * 5)];
-                this.size = Math.random() * 4 + 2;
             }
 
             update() {
                 this.x += this.vx;
                 this.y += this.vy;
-                this.vy += 0.2; // Piccolo effetto gravità verso il basso
+                if (!this.isHeart) {
+                    this.vy += 0.15; // Gravità leggera per i fuochi normali
+                } else {
+                    this.vx *= 0.96; // Attrito per la forma del cuore
+                    this.vy *= 0.96;
+                }
                 this.alpha -= this.decay;
             }
 
@@ -126,7 +150,7 @@
                 ctx.save();
                 ctx.globalAlpha = Math.max(this.alpha, 0);
                 ctx.fillStyle = this.color;
-                ctx.shadowBlur = 10;
+                ctx.shadowBlur = this.isHeart ? 18 : 10;
                 ctx.shadowColor = this.color;
                 ctx.beginPath();
                 ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
@@ -135,11 +159,9 @@
             }
         }
 
-        // Calcola la distanza media delle dita dal polso (punto 0) per capire se la mano è aperta o chiusa
         function getHandSpread(landmarks) {
             const wrist = landmarks[0];
             let totalDist = 0;
-            // Punte delle dita: indice(8), medio(12), anulare(16), mignolo(20)
             const tips = [8, 12, 16, 20];
             tips.forEach(tipIdx => {
                 const dx = landmarks[tipIdx].x - wrist.x;
@@ -151,60 +173,80 @@
 
         function onResults(results) {
             canvasCtx.save();
-            // Pulisce lo schermo mantenendo una scia leggermente fluida
-            canvasCtx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+            // Effetto scia morbido ad alta qualità
+            canvasCtx.fillStyle = 'rgba(0, 0, 0, 0.25)';
             canvasCtx.fillRect(0, 0, canvasElement.width, canvasElement.height);
 
             if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
-                const landmarks = results.multiHandLandmarks[0];
+                const handsCount = results.multiHandLandmarks.length;
+                effectStatus.innerText = `MANI RILEVATE: ${handsCount}`;
+                effectStatus.style.color = "#ff66b2";
 
-                // Disegno della mano stilizzato oro/arancio
-                drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS, {color: 'rgba(255, 170, 0, 0.4)', lineWidth: 2});
-                drawLandmarks(canvasCtx, landmarks, {color: '#ffaa00', lineWidth: 1, radius: 2});
+                // Controllo Gesto Cuore a Due Mani
+                if (handsCount >= 2) {
+                    const hand1 = results.multiHandLandmarks[0];
+                    const hand2 = results.multiHandLandmarks[1];
 
-                // Misuriamo l'apertura della mano
-                const spread = getHandSpread(landmarks);
-                
-                // Centro del palmo (approssimativo usando la media tra polso 0 e nocche centrali)
-                const palmX = (1 - landmarks[9].x) * window.innerWidth;
-                const palmY = landmarks[9].y * window.innerHeight;
+                    // Distanza tra i pollici (4) e gli indici (8) delle due mani
+                    const thumbDist = Math.hypot(hand1[4].x - hand2[4].x, hand1[4].y - hand2[4].y);
+                    const indexDist = Math.hypot(hand1[8].x - hand2[8].x, hand1[8].y - hand2[8].y);
 
-                // Soglie per determinare se è pugno o aperta
-                // (I valori possono variare leggermente in base alla distanza dalla webcam)
-                const isClosed = spread < 0.28; 
-                const isOpen = spread > 0.38;
+                    // Se i pollici e gli indici sono vicini, formano il cuore
+                    if (thumbDist < 0.15 && indexDist < 0.15) {
+                        const centerX = (1 - (hand1[8].x + hand2[8].x) / 2) * window.innerWidth;
+                        const centerY = ((hand1[8].y + hand2[8].y) / 2) * window.innerHeight;
 
-                if (isClosed) {
-                    wasClosed = true;
-                    effectStatus.innerText = "PUGN0 CHIUSO - CARICAMENTO...";
-                    effectStatus.style.color = "#ff3300";
+                        effectStatus.innerText = "❤️ CUORE MAGICO ATTIVATO! ❤️";
+                        effectStatus.style.color = "#ff1493";
+                        instruction.innerText = "✨ SPLENDIDO SPETTACOLO ROMANTICO! ✨";
+
+                        // Genera particelle a forma di cuore
+                        for (let i = 0; i < 5; i++) {
+                            particles.push(new Particle(centerX, centerY, true));
+                        }
+                    }
                 }
 
-                // Se prima era chiusa e ora si apre di scatto -> BOOM! Fuochi d'artificio
-                if (wasClosed && isOpen) {
-                    effectStatus.innerText = "BOOM! FUOCHI ATTIVATI!";
-                    effectStatus.style.color = "#00ffcc";
-                    instruction.innerText = "✨ SPETTACOLO ESPLOSIVO! ✨";
+                // Tracciamento e gestione singola per ogni mano presente
+                results.multiHandLandmarks.forEach((landmarks, index) => {
+                    // Colore dello scheletro personalizzato per mano
+                    const skinColor = index === 0 ? 'rgba(255, 51, 153, 0.5)' : 'rgba(0, 255, 204, 0.5)';
+                    const pointColor = index === 0 ? '#ff3399' : '#00ffcc';
 
-                    // Genera tantissime particelle al centro del palmo
-                    for (let i = 0; i < 70; i++) {
-                        particles.push(new Particle(palmX, palmY));
+                    drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS, {color: skinColor, lineWidth: 2});
+                    drawLandmarks(canvasCtx, landmarks, {color: pointColor, lineWidth: 1, radius: 2});
+
+                    const spread = getHandSpread(landmarks);
+                    const palmX = (1 - landmarks[9].x) * window.innerWidth;
+                    const palmY = landmarks[9].y * window.innerHeight;
+
+                    const isClosed = spread < 0.28;
+                    const isOpen = spread > 0.38;
+
+                    if (!handStates[index]) {
+                        handStates[index] = { wasClosed: false };
                     }
 
-                    wasClosed = false; // Reset dello stato finché non chiudi di nuovo
-                } else if (!isClosed && !wasClosed) {
-                    effectStatus.innerText = "MANA STABILE";
-                    effectStatus.style.color = "#ffaa00";
-                    instruction.innerText = "CHIUDI LA MANO E APRI DI SCATTO";
-                }
+                    if (isClosed) {
+                        handStates[index].wasClosed = true;
+                    }
+
+                    if (handStates[index].wasClosed && isOpen) {
+                        instruction.innerText = "🎆 FUOCO D'ARTIFICIO ESPLOSIVO! 🎆";
+                        for (let i = 0; i < 50; i++) {
+                            particles.push(new Particle(palmX, palmY, false));
+                        }
+                        handStates[index].wasClosed = false;
+                    }
+                });
 
             } else {
-                effectStatus.innerText = "IN ATTESA DI MANO...";
+                effectStatus.innerText = "IN ATTESA DI MANI...";
                 effectStatus.style.color = "#888888";
-                instruction.innerText = "MOSTRA LA MANO ALLA WEBCAM";
+                instruction.innerText = "CHIUDI E APRI LE MANI • AVVICINALE PER IL CUORE";
             }
 
-            // Aggiorna e Disegna tutte le particelle attive
+            // Aggiorna e disegna le particelle
             for (let i = particles.length - 1; i >= 0; i--) {
                 particles[i].update();
                 particles[i].draw(canvasCtx);
@@ -221,7 +263,7 @@
         });
 
         hands.setOptions({
-            maxNumHands: 1,
+            maxNumHands: 2, // Abilitato il tracciamento contemporaneo di massimo 2 mani
             modelComplexity: 1,
             minDetectionConfidence: 0.7,
             minTrackingConfidence: 0.7
